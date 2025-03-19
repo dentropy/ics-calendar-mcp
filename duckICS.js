@@ -90,6 +90,8 @@ for (const event_id in events) {
                 let tmp_event = JSON.parse(JSON.stringify(event))
                 tmp_event.start = occurrence
                 tmp_event.end = new Date(occurrence.getTime() + duration)
+                // console.log("tmp_event")
+                // console.log(tmp_event)
                 allEvents.push(tmp_event);
             });
         } else {

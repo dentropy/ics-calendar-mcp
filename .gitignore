@@ -3,7 +3,12 @@
 *db.wal
 *duck
 *.ics
-
+test.ics
+test.db
+sample.csv
+sample.json
+test.json
+test.csv
 
 # Logs
 logs
