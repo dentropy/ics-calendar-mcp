@@ -2,15 +2,44 @@ import fs from "node:fs";
 import duckdb from "@duckdb/node-api";
 import ical from "node-ical";
 import therrule from 'rrule';
+import { Command } from 'commander';
 
+const program = new Command();
 
-let rawdata = await fs.readFileSync("./basic.ics", "utf-8");
+program
+  .requiredOption('-i, --input <file>', 'input file')
+  .requiredOption('-o, --output <file>', 'input file')
+  .parse(process.argv);
+
+const options = program.opts();
+
+if (options.input) {
+  const inputFile = options.input;
+
+  // Validate that the file exists
+  fs.access(inputFile, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error(`File not found: ${inputFile}`);
+      process.exit(1);
+    } else {
+      console.log(`File exists: ${inputFile}`);
+      // Insert further processing of the file here
+    }
+  });
+} else {
+  console.error('No input file specified. Use -i option to specify the file.');
+  process.exit(1);
+}
+
+console.log(options)
+
+let rawdata = await fs.readFileSync(options.input, "utf-8");
 const events = await ical.sync.parseICS(rawdata);
 
 console.log(duckdb.version());
 console.log(duckdb.configurationOptionDescriptions());
 
-const instance = await duckdb.DuckDBInstance.create("ical.db");
+const instance = await duckdb.DuckDBInstance.create(options.output);
 const connection = await instance.connect();
 const result = await await connection.run(`
     CREATE TABLE if not exists calendar_events (
@@ -67,41 +96,41 @@ for (const event_id in events) {
             // Single event, add directly to the list
             allEvents.push(JSON.stringify(event));
         }
-    //     try {
-    //         const prepared = await connection.prepare(
-    //             `INSERT INTO calendar_events (
-    //                 uid, 
-    //                 event_data, 
-    //                 start_date_time, 
-    //                 end_date_time
-    //             ) VALUES (
-    //                 $uid, 
-    //                 $event_data, 
-    //                 $start, 
-    //                 $end
-    //             ) ON CONFLICT DO NOTHING`,
-    //         );
-    //         prepared.bind({
-    //             "uid": event_id,
-    //             "event_data": JSON.stringify(events[event_id], null, 2),
-    //             "start": events[event_id].start.toISOString(),
-    //             "end": events[event_id].end.toISOString(),
-    //         });
-    //         const result = await prepared.run();
-    //     } catch (error) {
-    //         console.log("WE_GOT_ERROR");
-    //         console.log(error);
-    //         const prepared = await connection.prepare(
-    //             `INSERT INTO calendar_events (uid, event_data) VALUES ($uid, $event_data) ON CONFLICT DO NOTHING`,
-    //         );
-    //         prepared.bind({
-    //             "uid": event_id,
-    //             "event_data": JSON.stringify(events[event_id], null, 2),
-    //         });
-    //         const result = await prepared.run();
-    //     }
-    //     console.log("events[event_id]:", events[event_id]);
+        try {
+            const prepared = await connection.prepare(
+                `INSERT INTO calendar_events (
+                    uid, 
+                    event_data, 
+                    start_date_time, 
+                    end_date_time
+                ) VALUES (
+                    $uid, 
+                    $event_data, 
+                    $start, 
+                    $end
+                ) ON CONFLICT DO NOTHING`,
+            );
+            prepared.bind({
+                "uid": event_id,
+                "event_data": JSON.stringify(events[event_id], null, 2),
+                "start": events[event_id].start.toISOString(),
+                "end": events[event_id].end.toISOString(),
+            });
+            const result = await prepared.run();
+        } catch (error) {
+            console.log("WE_GOT_ERROR");
+            console.log(error);
+            const prepared = await connection.prepare(
+                `INSERT INTO calendar_events (uid, event_data) VALUES ($uid, $event_data) ON CONFLICT DO NOTHING`,
+            );
+            prepared.bind({
+                "uid": event_id,
+                "event_data": JSON.stringify(events[event_id], null, 2),
+            });
+            const result = await prepared.run();
+        }
+        console.log("events[event_id]:", events[event_id]);
     }
 }
 
-fs.writeFileSync('ical.json', JSON.stringify(allEvents, null, 2));
+// fs.writeFileSync(options.duck, JSON.stringify(allEvents, null, 2));

@@ -1,7 +1,8 @@
 .vscode
 *db
 *db.wal
-
+*duck
+*.ics
 
 
 # Logs
